@@ -1,7 +1,7 @@
 ## This is an example of the first version of an R script I wrote up last year myself for pulling curve deltas and volumes
 ## Has since been updated a few times, namely primarily using dplyr instead of for loops and apply() functions to look more elegant and less redundant, but this piece shows my general understanding of base R
 
-
+## Note: I drop strategy names and a few sections for privacy sake and thus code is inoperatable
 
 ## Term PnL - by Colin for Power Trading Team, 8/18/2023, Reworked 11/25/23 (Excel version - makes more sense for users)
 
@@ -126,19 +126,16 @@ fcn_PasteRow = function(dataRow1){
 if (RefreshAllQueriesSection ==1){
 
 ## Dataframes that links together strategies/ISOs/etc (KEY tab on original EXCEL)
-StrategyKey <- data.frame("StrategyID" =c(192,193,178,190,187,188,185,171,196,197,198,202),"Strategy1" = c("NE Weather","ERCOT Shape","Ontario Variable Power Hedge","JE Trading Dawn Index Collateral","JE Trading NYMEX Corporate","JE Trading FX Corporate",
-"JE Trading Wholesale FX","JE Trading Wholesale Collateral","Variable Book Gas Optimization","JE Trading FX Trade Desk","US Gas Weather Book","Canada C&I Origination Margin"))
+StrategyKey <- data.frame("StrategyID" =c(192,193,178,190,187,188,185,171,196,197,198,202),"Strategy1" = c("XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX"))
 
-StrategySummaryKey<-data.frame("Strategy"=c("JE Trading Dawn Index Collateral","JE Trading FX Corporate","JE Trading NYMEX Corporate","JE Trading Wholesale FX","JE Trading Wholesale","JE Trading Retail","Ontario Power Variable Hedging","JE Trading Retail GCP","JE Trading Retail Associated Materials","JEUS Wholesale","JEUS NE Power Weather Hedge","Ercot Shape Book Strategy"
-,"Other","VOIDED","JE Trading Wholesale Collateral","Variable Book Gas Optimization","JEUS Wholesale Option_VariableLoadGas","JEUS Wholesale Option_VariableLoadPwr","JEUS Wholesale Option_GASRetailProducts","JEUS Wholesale Option_PWRRetailProducts","JEUS Wholesale Option_GASTailRiskManagement","JE Trading Wholesale Option_RetailProducts","JE Trading FX Trade Desk","US Gas Weather Book","Canada C&I Origination Margin")
-,"Strategy2"=c("Dawn Collateral","Corporate FX","Strategic NYMEX","Wholesale","Wholesale","Wholesale","CAN Power","Wholesale","Wholesale","Wholesale","US Power: NE Weather","US Power: ERCOT Shape","Wholesale","Wholesale","Wholesale","Variable NYMEX Hedge","Option","Option","Option","Option","Option","Option","Trading FX","UnitedStates Weather","Canada C&I Margin"))
+StrategySummaryKey<-data.frame("Strategy"= c("XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX"))
+,"Strategy2"= c("XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX"))
 
 EKAStrategyKey<-data.frame("StrategyID" = c(3,71,121,125,126,127,128,130,132,138,145,159,171,175,176,178,185,186,187,188,190,192,193,194,197,198,202),
-"EKAStrategy" = c("JEUS Wholesale","JE Trading Wholesale","JE Trading Wholesale Option_RetailProducts","JEUS Wholesale Option_VariableLoadGas","JEUS Wholesale Option_VariableLoadPwr","JEUS Wholesale HR_RetailProducts","JEUS Wholesale Option_GASRetailProducts","JEUS Wholesale Option_PWRRetailProducts","JE Trading Retail GCP","JE Trading Retail Associated Materials","JEUS Wholesale VariableLoadPower","JEUS COH_SCO"
-,"JE Trading Wholesale Collateral","JEUS Wholesale Collateral","JE Trading Weather Hedge Gas","Ontario Power Variable Hedging","JE Trading Wholesale FX","JEUS Wholesale Option_GASTailRiskManagement","JE Trading NYMEX Corporate","JE Trading FX Corporate","JE Trading Dawn Index Collateral","JEUS NE Power Weather Hedge","Ercot Shape Book Strategy","JE Trading Retail","JE Trading FX Trade Desk","US Gas Weather Book","Canada C&I Origination Margin"))
+"EKAStrategy" =  c("XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX"))
 
-GasPortfolioKey<-data.frame("Portfolio" = c("Canada - GAS","United States - GAS","HeatRate-Gas - GAS","US - Michigan - GAS","NG - Canada Desk","NG - US Desk","NG - Michigan Desk"),
-"Country"= c("Canada","UnitedStates","UnitedStates","UnitedStates","Canada","UnitedStates","UnitedStates"))
+GasPortfolioKey<-data.frame("Portfolio" =  c("XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX"),
+"Country"=  c("XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX"))
 
 CashLockDates<-data.frame("Months" = seq.Date(from = ymd(20240401), to = ymd(20250301),by= "month"),
 "CashLocks" = as.Date(c("2024-03-26","2024-04-26","2024-05-29","2024-06-26","2024-07-29","2024-08-28","2024-09-26","2024-10-29","2024-11-26","2024-12-27","2025-01-29","2025-02-26")))
@@ -153,12 +150,12 @@ Q2<-dbGetQuery(EMSAnalyticsChannel,
 	LEFT JOIN (SELECT DISTINCT StrategyID,Strategy FROM SQL04TOEKA.EkaEnergy.dbo.Strategy) S ON S.StrategyID = TR.StrategyID
 	WHERE L.reportdate >= '20240227' and L.calendarmonth >= '20240401'")
 Q2$TradePnL_USD<-ifelse(Q2$CurrencyOID ==1,Q2$TradePnL/Q2$USDToCAD,Q2$TradePnL)
-Q2$TradePnL_TeamCurrency<-ifelse(Q2$CurrencyOID == 2 & Q2$TradingTeam =="Canada" & Q2$Strategy != "JE Trading NYMEX Corporate",Q2$TradePnL * Q2$USDToCAD,Q2$TradePnL)
+Q2$TradePnL_TeamCurrency<-ifelse(Q2$CurrencyOID == 2 & Q2$TradingTeam =="Canada" & Q2$Strategy != "JE XXX",Q2$TradePnL * Q2$USDToCAD,Q2$TradePnL)
 Q2<-merge(Q2,StrategyKey,by.x ="StrategyID",by.y="StrategyID",all.x =TRUE)
 Q2<-merge(Q2,StrategySummaryKey,by.x = "Strategy",by.y = "Strategy",all.x = TRUE)
 Q2$Strategy2[is.na(Q2$Strategy2)]<-"Wholesale"
 Q2$Strategy2[Q2$Strategy2=="Wholesale"]<-paste(Q2$TradingTeam[Q2$Strategy2=="Wholesale"],Q2$Strategy2[Q2$Strategy2=="Wholesale"])
-Q2$ISO <- ifelse(Q2$Strategy2=="CAN Power","IESO",ifelse(Q2$Strategy2=="US Power:ERCOT Shape","ERCOT",ifelse(Q2$Strategy2=="US Power: NE Weather","PJM",0)))
+Q2$ISO <- ifelse(Q2$Strategy2=="XXX","IESO",ifelse(Q2$Strategy2=="US Power:ERCOT Shape","ERCOT",ifelse(Q2$Strategy2=="US Power: NE Weather","PJM",0)))
 Q2$CalendarMonth<-as.Date(Q2$CalendarMonth)
 Q2$FiscalYear <- year(Q2$CalendarMonth %m-%months(3))+1
 Q2<-merge(Q2,CashLockDates,by.x ="CalendarMonth", by.y="Months",all.x = TRUE)
@@ -431,17 +428,17 @@ mapply(function(x,y,z) sum(CurveUnexplainedPnLPivot$PriorDayMTM[CurveUnexplained
 	,WeatherUnexplainedPnLPivot$MarktoMarket[WeatherUnexplainedPnLPivot$Portfolio == x & WeatherUnexplainedPnLPivot$ReportDate ==y]
 	,Block4ShapeUnexplainedPnLPivot$PriorDayMTM[Block4ShapeUnexplainedPnLPivot$Portfolio == x & Block4ShapeUnexplainedPnLPivot$ReportDate ==y]
 	,na.rm=TRUE)
-	+z,x= Unexplained$Market[Unexplained$Market %in% c("ERCOT","NYISO","ISO-NE","AESO","MISO","IESO","PJM")],y= Unexplained$ReportDate[Unexplained$Market %in% c("ERCOT","NYISO","ISO-NE","AESO","MISO","IESO","PJM")], z =Unexplained$EODPrior[Unexplained$Market %in% c("ERCOT","NYISO","ISO-NE","AESO","MISO","IESO","PJM")])
+	+z,x= Unexplained$Market[Unexplained$Market %in% c( c("XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX"))],y= Unexplained$ReportDate[Unexplained$Market %in% c("ERCOT","NYISO","ISO-NE","AESO","MISO","IESO","PJM")], z =Unexplained$EODPrior[Unexplained$Market %in% c("ERCOT","NYISO","ISO-NE","AESO","MISO","IESO","PJM")])
 
 Unexplained$CurveTradeTransferWeatherB4SFXAdjPnL<-0
-Unexplained$CurveTradeTransferWeatherB4SFXAdjPnL[Unexplained$Market %in% c("ERCOT","NYISO","ISO-NE","AESO","MISO","PJM","IESO")]<-
+Unexplained$CurveTradeTransferWeatherB4SFXAdjPnL[Unexplained$Market %in% c("XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX")]<-
 	mapply(function(x,y) sum(CurveUnexplainedPnLPivot$CurvePnL[CurveUnexplainedPnLPivot$Portfolio ==x & CurveUnexplainedPnLPivot$ReportDate ==y]
 	,TradeUnexplainedPnLPivot$TradePnL[TradeUnexplainedPnLPivot$Portfolio ==x & TradeUnexplainedPnLPivot$ReportDate ==y]
 	,TransferUnexplainedPnLPivot$TransferPnL[TransferUnexplainedPnLPivot$Portfolio ==x & TransferUnexplainedPnLPivot$ReportDate ==y]
 	,WeatherUnexplainedPnLPivot$WeatherPnL[WeatherUnexplainedPnLPivot$Portfolio ==x & WeatherUnexplainedPnLPivot$ReportDate ==y]
 	,Block4ShapeUnexplainedPnLPivot$Block4ShapePnL[Block4ShapeUnexplainedPnLPivot$Portfolio ==x & Block4ShapeUnexplainedPnLPivot$ReportDate ==y]
 	,na.rm=TRUE)
-	,x = Unexplained$Market[Unexplained$Market %in% c("ERCOT","NYISO","ISO-NE","AESO","MISO","PJM","IESO")],y= Unexplained$ReportDate[Unexplained$Market %in% c("ERCOT","NYISO","ISO-NE","AESO","MISO","PJM","IESO")])
+	,x = Unexplained$Market[Unexplained$Market %in% c("XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX")],y= Unexplained$ReportDate[Unexplained$Market %in%  c("XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX")])
 
 Unexplained$CurveTradeTransferWeatherB4SFXAdjPnL[Unexplained$Market %in% c("PJM","IESO")]<-mapply(function(x,y) Unexplained$CurveTradeTransferWeatherB4SFXAdjPnL[Unexplained$Market ==x & Unexplained$ReportDate ==y] +
 	sum(PowerGasTradeUnexplainedPnLPivot$PowerGasTradePnL[PowerGasTradeUnexplainedPnLPivot$ReportDate == y & PowerGasTradeUnexplainedPnLPivot$ISO ==x]
@@ -458,12 +455,12 @@ Unexplained$CurveTradeTransferWeatherB4SFXAdjPnL[Unexplained$Market =="IESO"] <-
 	,Unexplained$CurveTradeTransferWeatherB4SFXAdjPnL[Unexplained$Market =="IESO" &Unexplained$ReportDate ==x]
 	,na.rm =TRUE))
 
-Unexplained$CurveTradeTransferWeatherB4SFXAdjPnL[Unexplained$Market %in% c("Strategic NYMEX","Trading FX","Corporate FX","Canada Wholesale","UnitedStates Wholesale","Dawn Collateral")] <-mapply(function(x,y)
+Unexplained$CurveTradeTransferWeatherB4SFXAdjPnL[Unexplained$Market %in%  c("XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX")] <-mapply(function(x,y)
 	sum(GasCurveUnexplainedPnLPivot[GasCurveUnexplainedPnLPivot$Strategy2 == x & GasCurveUnexplainedPnLPivot$ReportDate ==y,c("GasCurvePnL_TeamCurrency","FXAdjustmentCheck")]
 	,GasTradeUnexplainedPnLPivot$GasTradePnL_TeamCurrency[GasTradeUnexplainedPnLPivot$Strategy2 == x & GasTradeUnexplainedPnLPivot$ReportDate ==y]
 	,GasTransferUnexplainedPivot$TransferPnL_TeamCurrency[GasTransferUnexplainedPivot$Strategy2 ==x & GasTransferUnexplainedPivot$ReportDate ==y],na.rm=TRUE)
-	,x= Unexplained$Market[Unexplained$Market %in% c("Strategic NYMEX","Trading FX","Corporate FX","Canada Wholesale","UnitedStates Wholesale","Dawn Collateral")]
-	,y= Unexplained$ReportDate[Unexplained$Market %in% c("Strategic NYMEX","Trading FX","Corporate FX","Canada Wholesale","UnitedStates Wholesale","Dawn Collateral")])
+	,x= Unexplained$Market[Unexplained$Market %in%  c("XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX")]
+	,y= Unexplained$ReportDate[Unexplained$Market %in% c c("XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX")])
 
 Unexplained$CurrentMTM = Unexplained$EODPrior + Unexplained$CurveTradeTransferWeatherB4SFXAdjPnL
 Unexplained<-Unexplained[order(Unexplained$Market,Unexplained$ReportDate),]
@@ -486,7 +483,7 @@ FinalDoDPowerMonthly <-numeric()
 for (i in seq_along(DateCounter)){
 	DateCounter1<-DateCounter[i]
 	DoDStart <-DateCounterDates[i]
-DoDGas<-data.frame("Strategy" = c("Strategic NYMEX","UnitedStates Wholesale","Canada Wholesale","Corporate FX","Trading FX","UnitedStates Weather","Canada C&I Margin","Dawn Collateral"),"Currency" = c("USD","USD","CAD","CAD","CAD","USD","CAD","CAD"))
+DoDGas<-data.frame("Strategy" =  c("XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX")),"Currency" = c("XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX"))
 DoDGas$TradeHubPnL<-sapply(DoDGas$Strategy,function(x) sum(Q3$TradeHubPnL_TeamCurrency[Q3$ReportDate >DoDStart & Q3$ReportDate <=DoDEnd & Q3$Strategy2 ==x & Q3$Include =="Y"],na.rm=TRUE))
 DoDGas$TradeHubPnL[DoDGas$Strategy =="UnitedStates Wholesale"]<-DoDGas$TradeHubPnL[DoDGas$Strategy =="UnitedStates Wholesale"] - sum(C6$TradeHubPnL[C6$ReportDate<=DoDEnd & C6$ReportDate >DoDStart & C6$Include =="Y"],na.rm=TRUE)
 DoDGas$BasisPnL<-sapply(DoDGas$Strategy,function(x) 
@@ -499,7 +496,7 @@ DoDGas$FXAdjustment<-sapply(DoDGas$Strategy,function(x) sum(Q3$FXAdjustmentCheck
 ## Redo gas Financing here. Dawn collateral??
 ##DoDGas[,-1:-2] <-round(DoDGas[,-1:-2],0)
 
-DoDPower<-data.frame("ISO" = c("ERCOT","PJM","NYISO","ISO-NE","MISO","IESO","AESO"),"Currency" = c("USD","USD","USD","USD","USD","CAD","CAD"))
+DoDPower<-data.frame("ISO" =  c("XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX"),"Currency" =  c("XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX"))
 DoDPower$HubBlockPnL[DoDPower$ISO =="IESO"]<-sapply(DoDPower$ISO[DoDPower$ISO =="IESO"],function(x)
 	sum(Q9[Q9$ReportDate >DoDStart & Q9$ReportDate <=DoDEnd & Q9$Portfolio ==x & Q9$Include =="Y","TradeHubBlockPnL"],
 	sum(C7[C7$ReportDate<=DoDEnd & C7$ReportDate >DoDStart & C7$Include =="Y" ,c("FX_Adjustment","PWR_CurvePnL")],na.rm=TRUE)))
@@ -655,12 +652,12 @@ FiscalPower$Weather[FiscalPower$FiscalYear !=1 & FiscalPower$ISO =="PJM"]<-mappl
 
 ## Primary Gas by Fiscal
 
-FiscalGas<-data.frame("Strategy" = rep(c("Strategic NYMEX","UnitedStates Wholesale","Canada Wholesale","Corporate FX","Trading FX","Canada C&I Margin"),length(c(1,2025:2036))),"FiscalYear" = rep(c(1,2025:2036),length(c("Strategic NYMEX","UnitedStates Wholesale","Canada Wholesale","Corporate FX","Trading FX","Canada C&I Margin"))))
+FiscalGas<-expand.grid("Strategy" = c("XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX"),"FiscalYear" = c(1,2025:2036))
 ## Primary Gas YTDStart - prompt month
-FiscalGas$PrimaryTrading[FiscalGas$Strategy %in% c("Canada Wholesale","UnitedStates Wholesale") & FiscalGas$FiscalYear ==1] <- sapply(FiscalGas$Strategy[FiscalGas$Strategy %in% c("Canada Wholesale","UnitedStates Wholesale") & FiscalGas$FiscalYear ==1],function(x) sum(
+FiscalGas$PrimaryTrading[FiscalGas$Strategy %in% c("XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX") & FiscalGas$FiscalYear ==1] <- sapply(FiscalGas$Strategy[FiscalGas$Strategy %in% c("XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX") & FiscalGas$FiscalYear ==1],function(x) sum(
 	Q3[Q3$Strategy2 ==x & Q3$ReportDate > DoDStart & Q3$ReportDate <= DoDEnd & Q3$Include =="Y" & Q3$CalendarMonth >=DoDStart & Q3$CalendarMonth <=DoDEnd, c("FXAdjustmentCheck","NGCurvePnL_TeamCurrency")]
 	,Q2$TradePnL_TeamCurrency[Q2$Strategy2 ==x & Q2$ReportDate >DoDStart & Q2$ReportDate <= DoDEnd & Q2$CalendarMonth >=DoDStart & Q2$CalendarMonth <=DoDEnd & Q2$Include =="Y"],Q4$TransferPnL[Q4$Strategy2 ==x & Q4$ReportDate > DoDStart & Q4$ReportDate <=DoDEnd & Q4$CalendarMonth <=DoDEnd & Q4$CalendarMonth >= DoDStart & Q4$Include =="Y"],na.rm=TRUE))
-FiscalGas$PrimaryTrading[(FiscalGas$Strategy %in% c("Canada Wholesale","UnitedStates Wholesale"))==FALSE & FiscalGas$FiscalYear ==1] <- sapply(FiscalGas$Strategy[(FiscalGas$Strategy %in% c("Canada Wholesale","UnitedStates Wholesale"))==FALSE & FiscalGas$FiscalYear ==1],function(x) sum(
+FiscalGas$PrimaryTrading[(FiscalGas$Strategy %in%  c("XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX","XXX"))==FALSE & FiscalGas$FiscalYear ==1] <- sapply(FiscalGas$Strategy[(FiscalGas$Strategy %in% c("Canada Wholesale","UnitedStates Wholesale"))==FALSE & FiscalGas$FiscalYear ==1],function(x) sum(
 	Q3[Q3$Strategy2 ==x & Q3$ReportDate > DoDStart & Q3$ReportDate <= DoDEnd & Q3$Include =="Y" & Q3$CalendarMonth >=DoDStart & Q3$CalendarMonth <=DoDEnd, c("FXAdjustmentCheck","NGCurvePnL_TeamCurrency")]
 	,Q2$TradePnL_TeamCurrency[Q2$Strategy2 ==x & Q2$ReportDate >DoDStart & Q2$ReportDate <= DoDEnd & Q2$CalendarMonth >=DoDStart & Q2$CalendarMonth <=DoDEnd & Q2$Include =="Y"],na.rm=TRUE))
 ## Primary Gas fiscal (not by month)
@@ -673,27 +670,6 @@ FiscalGas$PrimaryTrading[(FiscalGas$Strategy %in% c("Canada Wholesale","UnitedSt
 	Q3[Q3$Strategy2 ==x & Q3$FiscalYear ==y & Q3$ReportDate > DoDStart & Q3$ReportDate <= DoDEnd & Q3$Include =="Y", c("FXAdjustmentCheck","NGCurvePnL_TeamCurrency")]
 	,Q2$TradePnL_TeamCurrency[Q2$Strategy2 ==x & Q2$FiscalYear ==y & Q2$ReportDate >DoDStart & Q2$ReportDate <= DoDEnd & Q2$Include =="Y"],na.rm = TRUE)
 	,x = FiscalGas$Strategy[(FiscalGas$Strategy %in% c("Canada Wholesale","UnitedStates Wholesale"))==FALSE & FiscalGas$FiscalYear !=1], y =FiscalGas$FiscalYear[(FiscalGas$Strategy %in% c("Canada Wholesale","UnitedStates Wholesale"))==FALSE & FiscalGas$FiscalYear !=1])
-## Secondaries by Fiscal
-FiscalSecondaries <-data.frame("Secondary" =rep(c("ERCOT Hub-to-LZ BasisPnL","ERCOT CARD","NY Capacity","Canada Gas Financing","US Gas Weather Books","Bid/Ask Reserve"),length(c(1,2025:2036))),"FiscalYear" = rep(c(1,2025:2036),length(c("ERCOT Hub-to-LZ BasisPnL","ERCOT CARD","NY Capacity","Canada Gas Financing","US Gas Weather Books","Bid/Ask Reserve"))))
-
-FiscalSecondaries$PrimaryTrading[FiscalSecondaries$Secondary =="ERCOT Hub-to-LZ BasisPnL" & FiscalSecondaries$FiscalYear ==1] <- sum(Q9$HubtoLZBasisStrategyPnL[Q9$ReportDate > DoDStart & Q9$ReportDate <=DoDEnd & Q9$Portfolio =="ERCOT" & Q9$Include =="Y" & Q9$CalendarMonth >=DoDStart & Q9$CalendarMonth <=DoDEnd])
-FiscalSecondaries$PrimaryTrading[FiscalSecondaries$Secondary =="ERCOT Hub-to-LZ BasisPnL" & FiscalSecondaries$FiscalYear !=1] <- sapply(FiscalSecondaries$FiscalYear[FiscalSecondaries$Secondary =="ERCOT Hub-to-LZ BasisPnL" & FiscalSecondaries$FiscalYear !=1],function(x) sum(Q9$HubtoLZBasisStrategyPnL[Q9$FiscalYear ==x &Q9$ReportDate > DoDStart & Q9$ReportDate <=DoDEnd & Q9$Portfolio =="ERCOT" & Q9$Include =="Y"],na.rm=TRUE))
-
-## Need to incorporate a view of 
-FiscalSecondaries$PrimaryTrading[FiscalSecondaries$Secondary =="ERCOT CARD"]<-0
-
-FiscalSecondaries$PrimaryTrading[FiscalSecondaries$Secondary =="NY Capacity" & FiscalSecondaries$FiscalYear ==1] <- sum(C8$Capacity_CurvePnL[C8$CalendarMonth >=DoDEnd & C8$CalendarMonth <=DoDEnd & C8$ReportDate >DoDStart & C8$ReportDate<=DoDEnd & C8$ISO =="NYISO" & C8$Include =="Y"],C9$Capacity_TransferPnL[C9$CalendarMonth >=DoDStart & C9$CalendarMonth <=DoDEnd & C9$ReportDate >DoDStart & C9$ReportDate<=DoDEnd & C9$ISO =="NYISO" & C9$Include =="Y"],C10$TradePnL[C10$CalendarMonth >=DoDStart & C10$CalendarMonth <=DoDEnd & C10$ReportDate >DoDStart & C10$ReportDate<=DoDEnd & C10$ISO =="NYISO"  & C10$Include =="Y"])
-FiscalSecondaries$PrimaryTrading[FiscalSecondaries$Secondary =="NY Capacity" & FiscalSecondaries$FiscalYear !=1] <-sapply(FiscalSecondaries$FiscalYear[FiscalSecondaries$Secondary =="NY Capacity" & FiscalSecondaries$FiscalYear !=1], function(x) sum(C8$Capacity_CurvePnL[C8$FiscalYear ==x & C8$ReportDate >DoDStart & C8$ReportDate<=DoDEnd & C8$ISO =="NYISO" & C8$Include =="Y"],C9$Capacity_TransferPnL[C9$FiscalYear ==x & C9$ReportDate >DoDStart & C9$ReportDate<=DoDEnd & C9$ISO =="NYISO" & C9$Include =="Y"],C10$TradePnL[C10$FiscalYear ==x & C10$ReportDate >DoDStart & C10$ReportDate<=DoDEnd & C10$ISO =="NYISO"  & C10$Include =="Y"]))
-
-FiscalSecondaries$PrimaryTrading[FiscalSecondaries$Secondary =="Canada Gas Financing" & FiscalSecondaries$FiscalYear ==1] <- sum(Q3[Q3$CalendarMonth >=DoDStart & Q3$CalendarMonth <=DoDEnd & Q3$ReportDate > DoDStart & Q3$ReportDate <=DoDEnd & Q3$Include =="Y" & Q3$EKAStrategy =="JE Trading Dawn Index Collateral",c("FXAdjustmentCheck","NGCurvePnL_TeamCurrency")],Q2$TradePnL_TeamCurrency[Q2$ReportDate > DoDStart & Q2$ReportDate <=DoDEnd & Q2$Include =="Y" & Q2$Strategy == "JE Trading Dawn Index Collateral" & Q2$CalendarMonth > DoDStart & Q2$CalendarMonth <=DoDEnd],na.rm =TRUE)
-FiscalSecondaries$PrimaryTrading[FiscalSecondaries$Secondary =="Canada Gas Financing" & FiscalSecondaries$FiscalYear !=1] <- sapply(FiscalSecondaries$FiscalYear[FiscalSecondaries$Secondary =="Canada Gas Financing" & FiscalSecondaries$FiscalYear !=1],function(x) sum(Q3[Q3$FiscalYear ==x & Q3$ReportDate > DoDStart & Q3$ReportDate <=DoDEnd & Q3$Include =="Y" & Q3$EKAStrategy =="JE Trading Dawn Index Collateral",c("FXAdjustmentCheck","NGCurvePnL_TeamCurrency")],Q2$TradePnL_TeamCurrency[Q2$FiscalYear ==x & Q2$ReportDate > DoDStart & Q2$ReportDate <=DoDEnd & Q2$Include =="Y" & Q2$Strategy == "JE Trading Dawn Index Collateral"],na.rm =TRUE))
-
-FiscalSecondaries$PrimaryTrading[FiscalSecondaries$Secondary =="US Gas Weather Books" & FiscalSecondaries$FiscalYear ==1] <- sum(Q3[Q3$CalendarMonth >=DoDStart & Q3$CalendarMonth <=DoDEnd & Q3$ReportDate > DoDStart & Q3$ReportDate <=DoDEnd & Q3$Include =="Y" & Q3$EKAStrategy =="US Gas Weather Book",c("FXAdjustmentCheck","NGCurvePnL_TeamCurrency")],Q2$TradePnL_TeamCurrency[Q2$ReportDate > DoDStart & Q2$ReportDate <=DoDEnd & Q2$Include =="Y" & Q2$Strategy == "US Gas Weather Book" & Q2$CalendarMonth > DoDStart & Q2$CalendarMonth <=DoDEnd],na.rm =TRUE)
-FiscalSecondaries$PrimaryTrading[FiscalSecondaries$Secondary =="US Gas Weather Books" & FiscalSecondaries$FiscalYear !=1] <- sapply(FiscalSecondaries$FiscalYear[FiscalSecondaries$Secondary =="US Gas Weather Books" & FiscalSecondaries$FiscalYear !=1],function(x) sum(Q3[Q3$FiscalYear ==x & Q3$ReportDate > DoDStart & Q3$ReportDate <=DoDEnd & Q3$Include =="Y" & Q3$EKAStrategy =="US Gas Weather Book",c("FXAdjustmentCheck","NGCurvePnL_TeamCurrency")],Q2$TradePnL_TeamCurrency[Q2$FiscalYear ==x & Q2$ReportDate > DoDStart & Q2$ReportDate <=DoDEnd & Q2$Include =="Y" & Q2$Strategy == "US Gas Weather Book"],na.rm =TRUE))
-
-## In need of a new Bid/Ask?
-FiscalSecondaries$PrimaryTrading[FiscalSecondaries$Secondary =="Bid/Ask Reserve" & FiscalSecondaries$FiscalYear ==1] <-0
-FiscalSecondaries$PrimaryTrading[FiscalSecondaries$Secondary =="Bid/Ask Reserve" & FiscalSecondaries$FiscalYear !=1] <-0
 
 FiscalPower$TableIdentifier <- DateCounter1
 FiscalGas$TableIdentifier <- DateCounter1
