@@ -1,0 +1,308 @@
+' Sample VBA code I wrote up for automating the daily functionality of an Excel file showing net position (Supply - Load). Reduces user-error by reducing the (numerous) manual inputs the file initially needed
+
+' VBA Position Report automation + Email creator
+
+' One macro to activate that runs the 3 other macros: Refreshes queries, updates pivots + move around numbers to appropriate places, and finally creates an Outlook item in Drafts for user to manually look over before sending out if it looks good.
+Sub AutoRun()
+
+Application.ScreenUpdating = False
+Application.EnableEvents = False
+Application.DisplayAlerts = False
+
+Call Refresh
+
+If Not Application.CalculationState = xlDone Then
+   DoEvents
+End If
+
+Call ChangePivotDates
+
+If Not Application.CalculationState = xlDone Then
+    DoEvents
+End If
+
+If Sheets("Controls").Range("B28") = 1 And Sheets("Controls").Range("B29") = 1 And Sheets("Controls").Range("H28") = 1 Then
+'Call SendEmail("Power Short-Term Position Summary", "", "")
+Call SendEmailDraft("Power Short-Term Position Summary", "", "")
+Else
+MsgBox ("Error Check Failed")
+End If
+
+
+End Sub
+
+Sub DraftEmail()
+
+'Brief QA/QC that'll flash msgbox error if the tables don't all agree - still requires some manual lookover
+
+If Sheets("Controls").Range("B28") = 1 And Sheets("Controls").Range("B29") = 1 Then
+Call SendEmailDraft("Power Short-Term Position Summary", "", "")
+Else
+MsgBox ("Error Check Failed")
+End If
+
+If Sheets("Controls").Range("M28") = 1 Then
+Else
+MsgBox ("Warning: STF does not look fully updated")
+End If
+
+End Sub
+
+
+Sub Refresh()
+' Refresh Macro
+    'ActiveWorkbook.RefreshAll
+    
+    Sheets("Hours").ListObjects("Hours").QueryTable.Refresh BackgroundQuery:=False
+    'Sheets("PnLPower").ListObjects("PnLPower").QueryTable.Refresh BackgroundQuery:=False
+    Sheets("EMS").ListObjects("Supply").QueryTable.Refresh BackgroundQuery:=False
+    Sheets("EMS").ListObjects("DART1").QueryTable.Refresh BackgroundQuery:=False
+    Sheets("Adapt2").ListObjects("Adapt2").QueryTable.Refresh BackgroundQuery:=False
+    Sheets("Quanto").ListObjects("Quanto").QueryTable.Refresh BackgroundQuery:=False
+    Sheets("Virtuals").ListObjects("Adapt2_Virtuals").QueryTable.Refresh BackgroundQuery:=False
+    Sheets("STF").ListObjects("STF").QueryTable.Refresh BackgroundQuery:=False
+    Sheets("ERCOT ANC Load").ListObjects("ANC_Demand_Settlements").QueryTable.Refresh BackgroundQuery:=False
+    Sheets("ERCOT ANC Load").ListObjects("ANC_DA_Ob").QueryTable.Refresh BackgroundQuery:=False
+    Sheets("ERCOT ANC Supply").ListObjects("ANC_Supply").QueryTable.Refresh BackgroundQuery:=False
+    
+    Calculate
+    
+    If Not Application.CalculationState = xlDone Then
+    DoEvents
+    End If
+    
+End Sub
+Sub ChangePivotDates()
+
+Dim EndDate, StartDate, LDStartDate
+Dim RTDate As String
+Dim counter As Integer
+counter = 0
+Sheets("Controls").Select
+
+EndDate = Range("B4")
+StartDate = Range("B3")
+RTDate = Range("D4")
+LDEndDate = Range("E4")
+
+'Update Pivots First
+
+    Sheets("Pivot").Select
+    ActiveSheet.PivotTables("PivotTable1").PivotCache.Refresh
+    ActiveSheet.PivotTables("PivotTable2").PivotCache.Refresh
+    ActiveSheet.PivotTables("PivotTable3").PivotCache.Refresh
+    ActiveSheet.PivotTables("PivotTable4").PivotCache.Refresh
+    ActiveSheet.PivotTables("PivotTable5").PivotCache.Refresh
+    ActiveSheet.PivotTables("PivotTable6").PivotCache.Refresh
+
+'Now Change the Filter Dates
+
+
+Worksheets("Pivot").PivotTables("PivotTable1").PivotFields("CalendarDate").ClearAllFilters
+Worksheets("Pivot").PivotTables("PivotTable1").PivotFields("CalendarDate").PivotFilters.Add _
+    Type:=xlDateBetween, _
+    Value1:=StartDate, _
+    Value2:=EndDate
+    
+Worksheets("Pivot").PivotTables("PivotTable2").PivotFields("CalendarDate").ClearAllFilters
+Worksheets("Pivot").PivotTables("PivotTable2").PivotFields("CalendarDate").PivotFilters.Add _
+    Type:=xlDateBetween, _
+    Value1:=StartDate, _
+    Value2:=EndDate
+    
+Worksheets("Pivot").PivotTables("PivotTable10").PivotFields("CalendarDate").ClearAllFilters
+Worksheets("Pivot").PivotTables("PivotTable10").PivotFields("CalendarDate").PivotFilters.Add _
+    Type:=xlDateBetween, _
+    Value1:=StartDate, _
+    Value2:=EndDate
+    
+Worksheets("Pivot").PivotTables("PivotTable3").PivotFields("CalendarDate").ClearAllFilters
+Worksheets("Pivot").PivotTables("PivotTable3").PivotFields("CalendarDate").CurrentPage = RTDate
+    
+Worksheets("Pivot").PivotTables("PivotTable4").PivotFields("CalendarDate").ClearAllFilters
+Worksheets("Pivot").PivotTables("PivotTable4").PivotFields("CalendarDate").PivotFilters.Add _
+    Type:=xlDateBetween, _
+    Value1:=RTDate, _
+    Value2:=EndDate
+    
+Worksheets("Pivot").PivotTables("PivotTable5").PivotFields("CalendarDate").ClearAllFilters
+Worksheets("Pivot").PivotTables("PivotTable5").PivotFields("CalendarDate").PivotFilters.Add _
+    Type:=xlDateBetween, _
+    Value1:=StartDate, _
+    Value2:=LDEndDate
+        
+Worksheets("Pivot").PivotTables("PivotTable6").PivotFields("CalendarDate").ClearAllFilters
+Worksheets("Pivot").PivotTables("PivotTable6").PivotFields("CalendarDate").PivotFilters.Add _
+    Type:=xlDateBetween, _
+    Value1:=StartDate, _
+    Value2:=LDEndDate
+    
+    ActiveSheet.PivotTables("PivotTable10").PivotFields("CalendarDate").AutoSort _
+        xlAscending, "CalendarDate"
+    
+    ActiveSheet.PivotTables("PivotTable6").PivotFields("CalendarDate").AutoSort _
+        xlAscending, "CalendarDate"
+        
+    ActiveSheet.PivotTables("PivotTable5").PivotFields("CalendarDate").AutoSort _
+        xlAscending, "CalendarDate"
+    
+    ActiveSheet.PivotTables("PivotTable4").PivotFields("CalendarDate").AutoSort _
+        xlAscending, "CalendarDate"
+        
+    ActiveSheet.PivotTables("PivotTable3").PivotFields("Hour").AutoSort xlAscending _
+        , "Hour"
+    
+    ActiveSheet.PivotTables("PivotTable2").PivotFields("CalendarDate").AutoSort _
+        xlAscending, "CalendarDate"
+    
+    ActiveSheet.PivotTables("PivotTable1").PivotFields("CalendarDate").AutoSort _
+        xlAscending, "CalendarDate"
+        
+Dim Table As PivotTable
+For Each tb In Worksheets("BASIS NYISO").PivotTables
+    tb.RefreshTable
+    tb.PivotFields("CalendarDate").ClearAllFilters
+    tb.PivotFields("CalendarDate").PivotFilters.Add _
+    Type:=xlDateBetween, _
+    Value1:=StartDate, _
+    Value2:=EndDate
+    tb.PivotFields("CalendarDate").AutoSort _
+        xlAscending, "CalendarDate"
+Next tb
+
+For Each tb In Worksheets("BASIS ISONE").PivotTables
+    tb.RefreshTable
+    tb.PivotFields("CalendarDate").ClearAllFilters
+    tb.PivotFields("CalendarDate").PivotFilters.Add _
+    Type:=xlDateBetween, _
+    Value1:=StartDate, _
+    Value2:=EndDate
+    tb.PivotFields("CalendarDate").AutoSort _
+        xlAscending, "CalendarDate"
+Next tb
+For Each tb In Worksheets("BASIS PJM").PivotTables
+    tb.RefreshTable
+    tb.PivotFields("CalendarDate").ClearAllFilters
+    tb.PivotFields("CalendarDate").PivotFilters.Add _
+    Type:=xlDateBetween, _
+    Value1:=StartDate, _
+    Value2:=EndDate
+    tb.PivotFields("CalendarDate").AutoSort _
+        xlAscending, "CalendarDate"
+Next tb
+
+'Recalc for the formatted tabs
+Calculate
+
+End Sub
+Sub createJpg(NameSheet As String, nameRange As String, nameFile As String)
+    ThisWorkbook.Activate
+    Worksheets(NameSheet).Activate
+    Set Plage = ThisWorkbook.Worksheets(NameSheet).Range(nameRange)
+    Application.CutCopyMode = False
+    Plage.CopyPicture
+    With ThisWorkbook.Worksheets(NameSheet).ChartObjects.Add(Plage.Left, Plage.Top, Plage.Width, Plage.Height)
+        .Activate
+        .ShapeRange.Line.Visible = msoFalse
+        .Chart.Paste
+        .Chart.Export Environ$("temp") & "\" & nameFile & ".bmp", "BMP"
+    End With
+    Worksheets(NameSheet).ChartObjects(Worksheets(NameSheet).ChartObjects.Count).Delete
+Set Plage = Nothing
+End Sub
+Sub createPNG(NameSheet As String, ByRef rngToPicture As String, nameFile As String)
+'This sub decreases size of email, reduces picture quality 
+    'Delete the existing PNG file of same name, if exists
+    On Error Resume Next
+        Kill Environ$("temp") & "\" & nameFile & ".png"
+    On Error GoTo 0
+
+    'Copy the range as picture
+    Worksheets(NameSheet).Range(rngToPicture).CopyPicture
+
+    'Paste the picture in Chart area of same dimensions
+    With ThisWorkbook.Worksheets(NameSheet).ChartObjects.Add(Range(rngToPicture).Left, Range(rngToPicture).Top, Range(rngToPicture).Width, Range(rngToPicture).Height)
+        .Activate
+        .ShapeRange.Line.Visible = msoFalse
+        .Chart.Paste
+        'Export the chart as PNG File to Temp folder
+        .Chart.Export Environ$("temp") & "\" & nameFile & ".png", "PNG"
+    End With
+    Worksheets(NameSheet).ChartObjects(Worksheets(NameSheet).ChartObjects.Count).Delete
+End Sub
+
+Sub SendEmailDraft(subject As String, body As String, sendFrom As String)
+
+Dim Email_Subject, Email_Send_From, Email_Send_To, Email_Cc, Email_Bcc, Email_Body As String
+Dim Mail_Object, Mail_Single As Variant
+Dim FileName        As String
+Dim MonthName       As String
+Dim MonthNum        As String
+Dim DayNum          As String
+
+Email_Subject = subject
+Email_Send_From = sendFrom & "justenergy.com"
+
+Email_Send_To = "DIST_Supply_Power_US; DIST_CANADA_TRADING; XXX@.com"
+' "PowerPosition@justenergy.com"
+
+Email_Body = body
+
+Set Mail_Object = CreateObject("Outlook.Application")
+
+Set Mail_Single = Mail_Object.CreateItem(0)
+    With Mail_Single
+        .subject = Email_Subject
+        .To = Email_Send_To
+        .cc = Email_Cc
+        .BCC = Email_Bcc
+        .body = Email_Body
+        
+        Call createJpg("ERCOT Position + ANC", "A2:AT68", "SummaryERCOT")
+        .Attachments.Add Environ$("temp") & "\" & "SummaryERCOT.bmp", olByValue, 0
+        
+        Call createJpg("Non-ERCOT Position", "A2:AF36", "SummarynonERCOT")
+        .Attachments.Add Environ$("temp") & "\" & "SummarynonERCOT.bmp", olByValue, 0
+        
+        Call createJpg("RT Position", "A2:L30", "RT")
+        .Attachments.Add Environ$("temp") & "\" & "RT.bmp", olByValue, 0
+        
+        Call createPNG("Load Deltas", "A2:U19", "LD")
+        .Attachments.Add Environ$("temp") & "\" & "LD.png", olByValue, 0
+        
+        Call createPNG("ERCOT Position + ANC", "AU2:BE35", "AncPos")
+        .Attachments.Add Environ$("temp") & "\" & "AncPos.png", olByValue, 0
+        
+        Call createJpg("ERCOT Position + ANC", "A69:AC85", "AncEnergy")
+        .Attachments.Add Environ$("temp") & "\" & "AncEnergy.bmp", olByValue, 0
+        
+        Call createPNG("All ISOs Basis Position", "A2:X36", "ERCOTBasis")
+        .Attachments.Add Environ$("temp") & "\" & "ERCOTBasis.png", olByValue, 0
+        
+        Call createPNG("All ISOs Basis Position", "AY2:BV36", "ISONEBasis")
+        .Attachments.Add Environ$("temp") & "\" & "ISONEBasis.png", olByValue, 0
+        
+        Call createPNG("All ISOs Basis Position", "Bw2:CT36", "NYISOBasis")
+        .Attachments.Add Environ$("temp") & "\" & "NYISOBasis.png", olByValue, 0
+        
+        Call createPNG("All ISOs Basis Position", "y2:Aw35", "PJMBasis")
+        .Attachments.Add Environ$("temp") & "\" & "PJMBasis.png", olByValue, 0
+        
+        Call createPNG("All ISOs Basis Position", "y37:Aw72", "PJMOptionsBasis")
+        .Attachments.Add Environ$("temp") & "\" & "PJMOptionsBasis.png", olByValue, 0
+        
+        '.HTMLbody = .HTMLbody & "<img src='cid:Notes.bmp'" & "<br>" & "<img src='cid:RT.bmp'" & "<br>" & "<img src='cid:SummarynonERCOT.bmp'" & "<br>" & "<img src='cid:SummaryERCOT.bmp'"
+        .HTMLbody = .HTMLbody & "<br>" & "<img src='cid:RT.bmp'" & "<br>" & "<img src='cid:SummarynonERCOT.bmp'" & "<br>" & "<img src='cid:SummaryERCOT.bmp'" & "<img src='cid:AncEnergy.bmp'" & "<br>" & "<img src='cid:LD.png'" & "<br>" &
+        "<img src='cid:AncPos.png'" & "<br>" & "<img src='cid:ERCOTBasis.png'" & "<br>" & "<img src='cid:ISONEBasis.png'" & "<br>" & "<img src='cid:NYISOBasis.png'" & "<br>" & "<img src='cid:PJMBasis.png'" & "<br>" & "<img src='cid:PJMOptionsBasis.png'"
+      
+   Dim ran As Range
+                     
+   .Display
+   .Save
+   '.Send
+   .Close olPromtForSave
+      
+    End With
+
+
+End Sub
