@@ -1,0 +1,943 @@
+## This is a webscraper from the ERCOT website that pulls info from JSON file, cleans it up, extracts it to SQL so it can be used for later market fundamentals analysis & PnL
+
+## Development started 2023-04-11 by XXX & TheColossalC
+## Pushed into PROD 2023-04-19 (ERCOT1-ERCOT7 initially,added ERCOT 8-10 over next few months as identified)
+
+
+# Data Description       : Describes what the urls below pulled
+# Site URL               : https://www.ercot.com/mp/data-products/data-product-details?id=XXXXXXXX
+# JSON URL               : https://www.ercot.com/misapp/servlets/IceDocListJsonWS?reportTypeId=XXXXXXXX
+
+
+# Data Description       : Describes what the urls below pulled
+# Site URL               : https://www.ercot.com/mp/data-products/data-product-details?id=XXXXXXXX
+# JSON URL               : https://www.ercot.com/misapp/servlets/IceDocListJsonWS?reportTypeId=XXXXXXXX
+
+
+# Data Description       : Describes what the urls below pulled
+# Site URL               : https://www.ercot.com/mp/data-products/data-product-details?id=XXXXXXXX
+# JSON URL               : https://www.ercot.com/misapp/servlets/IceDocListJsonWS?reportTypeId=2XXXXXXXX
+
+
+# Data Description       : Describes what the urls below pulled
+# Site URL               : https://www.ercot.com/mp/data-products/data-product-details?id=NXXXXXXXX
+# JSON URL               : https://www.ercot.com/misapp/servlets/IceDocListJsonWS?reportTypeId=XXXXXXXX
+
+
+# Data Description       : Describes what the urls below pulled
+# Site URL               : https://www.ercot.com/mp/data-products/data-product-details?id=XXXXXXXX
+# JSON URL               : https://www.ercot.com/misapp/servlets/IceDocListJsonWS?reportTypeId=XXXXXXXX
+
+# Data Description       : Describes what the urls below pulled
+# Site URL               : https://www.ercot.com/mp/data-products/data-product-details?idXXXXXXXX
+# JSON URL               : https://www.ercot.com/misapp/servlets/IceDocListJsonWS?reportTypeId=2XXXXXXXX
+
+# Data Description       : Describes what the urls below pulled
+# Site URL	             : https://www.ercot.com/mp/data-products/data-product-details?id=XXXXXXXX
+# JSON URL	             : https://www.ercot.com/misapp/servlets/IceDocListJsonWS?reportTypeId=XXXXXXXX
+
+# Data Description       : Describes what the urls below pulled
+# Site URL			         : https://www.ercot.com/mp/data-products/data-product-details?id=XXXXXXXX
+# JSON URL		           : https://www.ercot.com/misapp/servlets/IceDocListJsonWS?reportTypeId=XXXXXXXX
+
+
+# Data Description       : Describes what the urls below pulled
+# Site URL			         : https://www.ercot.com/mp/data-products/data-product-details?id=XXXXXXXX
+# JSON URL		           : https://www.ercot.com/misapp/servlets/IceDocListJsonWS?reportTypeId=XXXXXXXX
+
+# Data Description       : Describes what the urls below pulled
+# Site URL			         : https://www.ercot.com/mp/data-products/data-product-details?id=-XXXXXXXX
+# JSON URL		           : https://www.ercot.com/misapp/servlets/IceDocListJsonWS?reportTypeId=XXXXXXXX
+
+
+# ----------------------------------------------------------------------------------------------------------------
+# --------------------------------- Important Information --------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------
+
+# The url points to an html page which contains an empty table. 
+# The reason why you can see the contents of the table in your web browser is that the html instructs your 
+# browser to download the table's contents from a different page and inserts it into the empty table. 
+# Rvest just reads the first page's html without running the javascript that dynamically loads 
+# the data table via a created JSON file.  The JSON file is what we want to scrape from !
+
+
+# Pulls from ERCOT website, they post grid information in .CSV files daily/hourly.
+
+# Location of Tables : 
+#     Server = "DBSQL04\\SQL04", 
+#     database ="Supply_Analytics" 
+
+# Times to run the script: (4 times /Day)
+# 1) 6   am (CST)
+# 2) 9   am (CST)
+# 3) 12  pm (CST)
+# 4) 3   pm (CST) 
+
+# ----------------------------------------------------------------------------------------------------------------
+# -------------------- Loading In Necessary Libraries -------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------
+
+rm(list = ls())
+
+setwd("\\\\oescca\\jec\\JustEnergy\\Houston\\Supply\\Supply\\_Load Forecasting\\Web Scrapers\\ERCOT Webscraper")  
+library(ggplot2)
+library(tidyverse)
+library(rvest)
+library(xml2)
+library(readr)
+library(httr)
+library(sendmailR)
+library(magrittr)
+library(jsonlite)
+library(lubridate)
+library(openxlsx)
+#library(DBI)
+library(odbc)
+library(RODBC)
+library(sendmailR)
+library(readxl)
+
+# ----------------------------------------------------------------------------------------------------------------
+# -------------------- Loading In Needed Connections -------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------
+
+# DBI: Connection Not working 
+#channel <- dbConnect(odbc::odbc(), driver ="SQL Server", Server = "DBSQL04\\SQL04", database ="Supply_Analytics")
+
+
+# RODBC: RODBC Connection 
+channel <- odbcDriverConnect(connection = "DRIVER={SQL Server};
+                                           SERVER={DBSQL04\\SQL04};
+                                           DATABASE={Supply_Analytics}")
+
+# ----------------------------------------------------------------------------------------------------------------
+# -------------------- Loading In Required Functions -------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------
+print("Loading in the functons!")
+
+
+# -------  Function that outputs scraped Data Frame from Json URL
+
+fcn_scrape_json_table <- function(site_url, json_url) {
+  
+  
+  # --- Print Statement 
+  print(paste("Scraping the Data from: ", site_url))
+  
+  
+  # --- Loading json site data
+  sitedata <- jsonlite::fromJSON(json_url)
+  
+  
+  # --- Site data frame 
+  site_data_frame <- sitedata$ListDocsByRptTypeRes$DocumentList$Document %>% as_tibble() %>%
+    dplyr::mutate(InsertDateTime = as.character(Sys.time() ))
+  
+  
+  # --- Contains both XML and csv files in data frame (Only want CSVs')
+  filtered_data_frame <- site_data_frame %>%
+    dplyr::filter(str_detect(FriendlyName, pattern = '_csv')) %>% 
+    dplyr::select(InsertDateTime, PublishDate, ReportName, DocID) %>% 
+    dplyr::mutate(DownloadLink = paste0('https://www.ercot.com/misdownload/servlets/mirDownload?doclookupId=', DocID),
+                  ReportName = stringr::str_remove_all(ReportName, pattern = " "),) %>%
+    dplyr::arrange(PublishDate)
+  
+  
+  # --- Returning the DataFrame 
+  print("Dataframe Successfully filtered !")
+  return(filtered_data_frame)
+  
+}
+
+# -------  Function that downloads , reads in and aggregates all the respective csv files into R
+# Option to hold the respective CSVs' or deleted them once done !
+
+
+# --------- Function for first 7 tables: 
+fcn_download_data <- function(scraped_json_data, sql_table_name, csv_storage_directory, delete_csv_logical){
+  
+  data_to_insert = data.frame()
+  
+  # Gets reference to latest table entry. Remove all # from beginning of line if NOT a new table
+  LatestSQL <- sqlQuery(channel,paste("SELECT TOP (1) [EntryIndex],[PublishTime] FROM",sql_table_name,"order by PublishTime desc"))
+  
+  JSONIndex <- ifelse(is.na(match(LatestSQL$PublishTime, scraped_json_data$PublishDate))==FALSE,match(LatestSQL$PublishTime, scraped_json_data$PublishDate),0)
+  
+  EntryIndex <- LatestSQL$EntryIndex
+  
+  
+  # --------- First run condition
+  if (identical(JSONIndex,integer(0))){ JSONIndex <- 1}
+  
+  
+  # --------- First run condition
+  if(is.character(EntryIndex)){EntryIndex <- 0}
+  
+  
+  # --------- No new data to add: return empty data-frame
+  if((JSONIndex+1) > nrow(scraped_json_data)) {
+    return(data_to_insert)
+  }
+  
+  
+  
+  # LAST entry on JSON is most recent, and associate MAX entry index with most recent, so add that last (so EntryIndex loops the most)
+  for(i in (JSONIndex+1):(nrow(scraped_json_data))) {
+    
+    # Creates temporary file object (this will store the downloaded file)
+    temp <- tempfile() 
+    
+    # Downloads the file
+    url_download_file <- as.character(scraped_json_data[i,'DownloadLink'])
+    download.file(url = url_download_file, destfile = temp, mode = "wb")
+    
+    # unzips the file: Places in the following directory
+    temp_file <- unzip(zipfile = temp, 
+                       exdir = csv_storage_directory,
+                       overwrite = FALSE)
+    
+    # Renaming the unzipped file based on the publish date
+    split <- unlist(stringr::str_split(string = scraped_json_data$PublishDate[i], pattern = '-'))
+    concat <- stringr::str_c(split[1], split[2] ,split[3], sep = "-")
+    
+    DateTime <- stringr::str_replace_all(string = concat, pattern = ":",replacement = "-")
+    DateTime <- stringr::str_replace(string = DateTime, pattern = "T", replacement = "_TIME_")
+    
+    df <- file.info(list.files(path = csv_storage_directory, full.names = T))
+    
+    old_name <- rownames(df)[which.max(df$mtime)]
+    new_name <- paste0(csv_storage_directory, "\\", scraped_json_data$ReportName[i], "_DATE_",DateTime,".csv")
+    
+    file.rename(from = old_name, to = new_name)
+    
+    # reads in the csv
+    csv_data <- read_csv(file = new_name, col_names = T)
+    csv_data <- csv_data %>% dplyr::mutate()
+    
+    PublishTime<-scraped_json_data$PublishDate[i]
+    EntryIndex<- 1+EntryIndex
+    csv_data<-cbind(csv_data,EntryIndex,PublishTime)
+    
+    # Deletes the file within the temp folder 
+    unlink(x = temp)
+    
+    # Let a second pass
+    Sys.sleep(1)
+    
+    # Row binds the data
+    data_to_insert = rbind(data_to_insert, csv_data)
+    }
+  # Deletes all unzipped csv files if TRUE:
+  if(delete_csv_logical){
+    
+    unlink(x = paste0(csv_storage_directory,"\\*.csv" ))
+    
+  }
+  
+  # glimpse(data_to_insert)
+  print("Download Complete!")
+  return(data_to_insert) 
+}
+
+
+# --------- Function for table 8: specific to :[Supply_Analytics].[OESCCA\\CCopeland].[ErcotUnplannedResourceOutages]
+fcn_download_data1 <- function(scraped_json_data, sql_table_name, csv_storage_directory, delete_csv_logical){
+  
+  data_to_insert = data.frame()
+  
+  #Gets reference to latest table entry. Remove all # from beginning of line if NOT a new table
+  LatestSQL <- sqlQuery(channel,paste("SELECT TOP (1) [EntryIndex],[PublishTime] FROM",sql_table_name,"order by PublishTime desc"))
+  JSONIndex <- ifelse(is.na(match(LatestSQL$PublishTime, scraped_json_data$PublishDate))==FALSE,match(LatestSQL$PublishTime, scraped_json_data$PublishDate),0)
+  EntryIndex <- LatestSQL$EntryIndex
+  
+  
+  # --------- First run condition
+  if (identical(JSONIndex,integer(0))){ JSONIndex <- 1}
+  
+  # --------- First run condition
+  if(is.character(EntryIndex )){EntryIndex <- 0}
+  
+  
+  # --------- No new data to add: return empty dataframe
+  if((JSONIndex+1) >= nrow(scraped_json_data)) {
+    
+    
+    
+    return(data_to_insert)
+  }
+  
+  # LAST entry on JSON is most recent, and associate MAX entry index with most recent, so add that last (so EntryIndex loops the most)
+  for(i in (JSONIndex+1):(nrow(scraped_json_data))) {    
+    # Creates temporary file object (this will store the downloaded file)
+    temp <- tempfile() 
+    
+    # Downloads the file
+    url_download_file <- as.character(scraped_json_data[i,'DownloadLink'])
+    download.file(url = url_download_file, destfile = temp, mode = "wb")
+    
+    # unzips the file: Places in the following directory
+    temp_file <- unzip(zipfile = temp, 
+                       exdir = csv_storage_directory,
+                       overwrite = FALSE)
+    
+    
+    
+    # reads in the csv
+    csv_data <- read_excel(temp_file,sheet= "Unplanned Resource Outages",range =cell_cols("A:K"))
+    csv_data<- csv_data[c(6:dim(csv_data)[1]-1),]
+    PublishTime<-scraped_json_data$PublishDate[i]
+    EntryIndex<- 1+EntryIndex
+    csv_data<-cbind(csv_data,EntryIndex,PublishTime)
+    # Deletes the file within the temp folder 
+    unlink(x = temp)
+    # Let a second pass
+    Sys.sleep(1)    # Row binds the data
+    data_to_insert = rbind(data_to_insert, csv_data)
+  }
+  # Deletes all unzipped csv files if TRUE:
+  if(delete_csv_logical){
+    unlink(x = paste0(csv_storage_directory,"\\*.xlsx" ))
+  }
+  data_to_insert[is.na(data_to_insert)] <-0
+  colnames(data_to_insert)[1:11] <-c("Resource_Name","Resource_Unit_Code","Fuel_Type","Outage_Type","Available_MW_Max","Available_MW_During_Outage","Effective_MW_Due_To_Outage","Actual_Outage_Start","Planned_End_Date","Actual_End_Date","Nature_Of_Work")
+  # glimpse(data_to_insert)
+  print("Download Complete!")
+  return(data_to_insert)
+}
+
+
+# --------- Function for table 9: specific to : ERCOT Sixty Day COP (Current Operating Plan )
+fcn_download_data2 <- function(scraped_json_data, sql_table_name, csv_storage_directory, delete_csv_logical){
+  
+  data_to_insert = data.frame()
+  
+  # Gets reference to latest table entry. Remove all # from beginning of line if NOT a new table
+  LatestSQL <- sqlQuery(channel,paste("SELECT TOP (1) [EntryIndex],[PublishTime] FROM",sql_table_name,"order by PublishTime desc"))
+  
+  JSONIndex <- ifelse(is.na(match(LatestSQL$PublishTime, scraped_json_data$PublishDate))==FALSE,match(LatestSQL$PublishTime, scraped_json_data$PublishDate),0)
+  
+  EntryIndex <- LatestSQL$EntryIndex
+  
+  
+  # --------- First run condition
+  if (identical(JSONIndex,integer(0))){ JSONIndex <- 1}
+  
+  # --------- First run condition
+  if(is.character(EntryIndex )){EntryIndex <- 0}
+  
+  
+  # --------- No new data to add: return empty dataframe
+  if((JSONIndex) >= nrow(scraped_json_data)) {
+    return(data_to_insert)
+  }
+  
+  # LAST entry on JSON is most recent, and associate MAX entry index with most recent, so add that last (so EntryIndex loops the most)
+  for(i in (JSONIndex+1):(nrow(scraped_json_data))) {
+    
+    # Creates temporary file object (this will store the downloaded file)
+    temp <- tempfile() 
+    
+    # Downloads the file
+    url_download_file <- as.character(scraped_json_data[i,'DownloadLink'])
+    download.file(url = url_download_file, destfile = temp, mode = "wb")
+    
+    # unzips the file: Places in the following directory
+    temp_file <- unzip(zipfile = temp, 
+                       exdir = csv_storage_directory,
+                       overwrite = FALSE)
+    
+    # Renaming the unzipped file based on the publish date
+    split <- unlist(stringr::str_split(string = scraped_json_data$PublishDate[i], pattern = '-'))
+    concat <- stringr::str_c(split[1], split[2] ,split[3], sep = "-")
+    
+    DateTime <- stringr::str_replace_all(string = concat, pattern = ":",replacement = "-")
+    DateTime <- stringr::str_replace(string = DateTime, pattern = "T", replacement = "_TIME_")
+    
+    df <- file.info(list.files(path = csv_storage_directory, full.names = T))
+    
+    old_name <- rownames(df)[which.max(df$mtime)]
+    new_name <- paste0(csv_storage_directory, "\\", scraped_json_data$ReportName[i], "_DATE_",DateTime,".csv")
+    
+    file.rename(from = old_name, to = new_name)
+    
+    # reads in the csv
+    csv_data <- read_csv(file = new_name, col_names = T)
+    csv_data <- csv_data %>% dplyr::mutate()
+    
+    PublishTime<-scraped_json_data$PublishDate[i]
+    EntryIndex<- 1+EntryIndex
+    csv_data<-cbind(csv_data,EntryIndex,PublishTime)
+    
+    # Deletes the file within the temp folder 
+    unlink(x = temp)
+    
+    # Let a second pass
+    Sys.sleep(1)
+    
+    # Row binds the data
+    data_to_insert = rbind(data_to_insert, csv_data)
+  }
+  
+  # Deletes all unzipped csv files if TRUE:
+  if(delete_csv_logical){
+    
+    unlink(x = paste0(csv_storage_directory,"\\*.csv" ))
+    
+  }
+  
+  # glimpse(data_to_insert)
+  print("Download Complete!")
+  return(data_to_insert) 
+}
+
+
+
+fcn_scrape_json_table1 <- function(site_url, json_url) {
+  
+  # --- Print Statement 
+  print(paste("Scraping the Data from: ", site_url))
+  
+  # --- Loading json site data
+  sitedata <- jsonlite::fromJSON(json_url)
+  
+  site_data_frame <- sitedata$ListDocsByRptTypeRes$DocumentList$Document %>% as_tibble() %>%
+    dplyr::mutate(InsertDateTime = as.character(Sys.time() ))
+  
+  
+  # --- Contains both XML and csv files in data frame (Only want CSVs')
+  filtered_data_frame <- site_data_frame %>%
+    dplyr::select(InsertDateTime, PublishDate, ReportName, DocID) %>% 
+    dplyr::mutate(DownloadLink = paste0('https://www.ercot.com/misdownload/servlets/mirDownload?doclookupId=', DocID),
+                  ReportName = stringr::str_remove_all(ReportName, pattern = " "),) %>%
+    dplyr::arrange(PublishDate)
+  
+  # --- Returning the DataFrame 
+  print("Dataframe Successfully filtered !")
+  return(filtered_data_frame)
+}
+
+
+# --- NEW VERSION : Function for Inserting R- Data frames into SQL tables with helper function  
+fcn_SQLInsertFast = function(data0, saveTable, channelInsert, numParts = 500){
+  ####can only do for 15k row blocks for some reason
+  
+  if(nrow(data0) <= numParts){
+    
+    p <- paste0("INSERT INTO ", saveTable, "
+                      VALUES
+                      ",paste0(apply(data0, 1, fcn_PasteRow), collapse = ',\n'), collapse = '\n')
+    
+    p <-  gsub(x = p, pattern = "'NA'", replacement = "NULL")
+    
+    
+    sqlQuery(channelInsert,
+             p,
+             stringsAsFactors = FALSE,
+             as.is = T)
+    
+  }else{
+    KK = ceiling(nrow(data0) / numParts)
+    data1 = split(data0, sort(sample(1:KK, nrow(data0), replace=T)), drop = T)
+    for(j in 1:KK){
+      #names(data1[[j]])
+      
+      
+      p <- paste0("INSERT INTO ", saveTable, "
+                      VALUES
+                      ",paste0(apply(data1[[j]], 1, fcn_PasteRow), collapse = ',\n'), collapse = '\n')
+      
+      p <-  gsub(x = p, pattern = "'NA'", replacement = "NULL")
+      
+      # Data check
+      before <- sqlQuery(channelInsert, paste0("SELECT count(*) as count from ",saveTable)) %>% pull(count) %>% as.integer()
+      # Insert
+      sqlQuery(channelInsert, p )
+      # number we should add
+      added_rows <- nrow(data1[[j]])
+      # After
+      after <- sqlQuery(channelInsert, paste0("SELECT count(*) as count from ",saveTable)) %>% pull(count) %>% as.integer()
+      
+      if(added_rows + before != after ) {
+        stop(paste("Problem at slice :", j ))
+      }
+
+    
+    }
+  }
+  
+}
+
+
+fcn_PasteRow = function(dataRow1){
+  return(paste0(
+    "('", paste(dataRow1, collapse = "','"),"')"
+  ))
+}
+
+
+# ----------------------------------------------------------------------------------------------------------------
+# ------------------- Scraping the Dynamic Tables INITIAL --------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------
+print("Scraping the Dynamic Tables")
+
+
+
+# -------------------------- For 7 day load forecast by weather zone and model (Hourly) 
+
+# ---- Input Parameters here 
+
+site <- 'https://www.ercot.com/mp/data-products/data-product-details?id=NP3-565-CD'
+json <- 'https://www.ercot.com/misapp/servlets/IceDocListJsonWS?reportTypeId=14837'
+
+# ---- Scraping the Site 
+
+lf_7_json_table <- fcn_scrape_json_table(site_url = site, 
+                                         json_url = json)
+
+
+ERCOT1 <- fcn_download_data(scraped_json_data = lf_7_json_table, 
+                            sql_table_name = '[Supply_Analytics].[OESCCA\\CCopeland].[XXX]',
+                            csv_storage_directory = "XXX",
+                            delete_csv_logical = T) 
+
+
+print("ERCOT1 Complete!")
+
+# -------------------------- System Wide and Regional Solar Forecast by Model (Hourly)
+
+site <- 'https://www.ercot.com/mp/data-products/data-product-details?id=NP4-443-CD'
+json <- 'https://www.ercot.com/misapp/servlets/IceDocListJsonWS?reportTypeId=21811'
+
+# ---- Scraping the Site 
+
+SF_json_table <- fcn_scrape_json_table(site_url = site, 
+                                       json_url = json)
+
+ERCOT2 <- fcn_download_data(scraped_json_data = SF_json_table,
+                            sql_table_name = "[Supply_Analytics].[OESCCA\\CCopeland].[XXX]",
+                            csv_storage_directory = "XXX", 
+                            delete_csv_logical = T) 
+
+print("ERCOT2 Complete!")
+
+# -------------------------- Solar Power Production Hourly Averaged Actual and Forecasted Values by Geographical Region (Hourly)
+
+site <- 'https://www.ercot.com/mp/data-products/data-product-details?id=NP4-745-CD'
+json <- 'https://www.ercot.com/misapp/servlets/IceDocListJsonWS?reportTypeId=21809'
+
+# ---- Scraping the Site 
+
+SFavg_json_table <- fcn_scrape_json_table(site_url = site, 
+                                          json_url = json)
+
+ERCOT3 <- fcn_download_data(scraped_json_data = SFavg_json_table, 
+                            sql_table_name = "[Supply_Analytics].[OESCCA\\CCopeland].[XXX]", 
+                            csv_storage_directory = "XXX", 
+                            delete_csv_logical = T) 
+
+print("ERCOT3 Complete!")
+
+
+# -------------------------- Wind Power Production Hourly Averaged Actual and Forecasted Values (Hourly)
+
+site <- 'https://www.ercot.com/mp/data-products/data-product-details?id=NP4-732-CD'
+json <- 'https://www.ercot.com/misapp/servlets/IceDocListJsonWS?reportTypeId=13028'
+
+# ---- Scraping the Site 
+
+WF_json_table <- fcn_scrape_json_table(site_url = site, 
+                                       json_url = json)
+
+ERCOT4 <- fcn_download_data(scraped_json_data = WF_json_table, 
+                            sql_table_name = "[Supply_Analytics].[OESCCA\\CCopeland].[XXX]", 
+                            csv_storage_directory = "XXX",  
+                            delete_csv_logical = T) 
+
+print("ERCOT4 Complete!")
+
+# -------------------------- Available Resource Planned Outage Capacity Margin_7 Day Plus (Daily PEAK 5 years forward) (Hourly)
+
+site <- 'https://www.ercot.com/mp/data-products/data-product-details?id=NP3-161-CD'
+json <- 'https://www.ercot.com/misapp/servlets/IceDocListJsonWS?reportTypeId=22470'
+
+# ---- Scraping the Site 
+
+POC7_json_table <- fcn_scrape_json_table(site_url = site, 
+                                         json_url = json)
+
+ERCOT5 <- fcn_download_data(scraped_json_data = POC7_json_table, 
+                            sql_table_name = "[Supply_Analytics].[OESCCA\\CCopeland].[XXX]",
+                            csv_storage_directory = "XXX", 
+                            delete_csv_logical = T) 
+
+print("ERCOT5 Complete!")
+
+
+# -------------------------- Available Resource Planned Outage Capacity Margin_7 Day (Hourly outages through 7 days) (Hourly)
+
+site <- 'https://www.ercot.com/mp/data-products/data-product-details?id=NP3-162-CD'
+json <- 'https://www.ercot.com/misapp/servlets/IceDocListJsonWS?reportTypeId=22469'
+
+# ---- Scraping the Site 
+
+POC7H_json_table <- fcn_scrape_json_table(site_url = site, 
+                                          json_url = json)
+
+ERCOT6 <- fcn_download_data(scraped_json_data = POC7H_json_table, 
+                            sql_table_name = "[Supply_Analytics].[OESCCA\\CCopeland].[XXX]", 
+                            csv_storage_directory = "XXX",
+                            delete_csv_logical = T) 
+
+print("ERCOT6 Complete!")
+
+# --------------------------- Hourly Outage Resource Capacity 
+
+site <- 'https://www.ercot.com/mp/data-products/data-product-details?id=NP3-233-CD'
+json<- 'https://www.ercot.com/misapp/servlets/IceDocListJsonWS?reportTypeId=13103'
+
+
+# ----- Scraping the Site
+HORC_json_table <- fcn_scrape_json_table(site_url = site, 
+                                         json_url = json)
+
+
+ERCOT7 <- fcn_download_data(scraped_json_data = XXX, 
+                            sql_table_name = "[Supply_Analytics].[OESCCA\\CCopeland].[XXX]", 
+                            csv_storage_directory = "XXX",
+                            delete_csv_logical = T) 
+
+
+print("ERCOT7 Complete!")
+
+
+
+
+# --------------------------- Unplanned Resource Outages Report
+
+site <- 'https://www.ercot.com/mp/data-products/data-product-details?id=NP1-346-ER'
+json <- 'https://www.ercot.com/misapp/servlets/IceDocListJsonWS?reportTypeId=22912'
+
+# ----- Scraping the Site
+UPOC_json_table <- fcn_scrape_json_table1(site_url = site, 
+                                         json_url = json)
+
+ERCOT8 <- fcn_download_data1(scraped_json_data = UPOC_json_table, 
+                            sql_table_name = "[Supply_Analytics].[OESCCA\\CCopeland].[ErcotUnplannedResourceOutages]", 
+                            csv_storage_directory = "XXX",
+                            delete_csv_logical = T) 
+
+print("ERCOT8 Complete!")
+
+
+
+#---------------------------- 60-Day COP All Updates
+site <-'https://www.ercot.com/mp/data-products/data-product-details?id=NP3-991-EX'
+json <-'https://www.ercot.com/misapp/servlets/IceDocListJsonWS?reportTypeId=15943'
+
+COPAllUpdate60 <- fcn_scrape_json_table1(site_url = site, 
+                                         json_url = json)
+
+ERCOT9 <- fcn_download_data2(scraped_json_data = XXX, 
+                             sql_table_name = "[Supply_Analytics].[OESCCA\\CCopeland].[XXX]", 
+                             csv_storage_directory = "XXX",
+                             delete_csv_logical = T ) 
+
+print("ERCOT9 Complete!")
+
+
+site <- 'https://www.ercot.com/mp/data-products/data-product-details?id=NP4-188-CD'
+json <- 'https://www.ercot.com/misapp/servlets/IceDocListJsonWS?reportTypeId=12329'
+
+DAAncClears <- fcn_scrape_json_table(site_url = site, 
+                                         json_url = json)
+
+ERCOT10 <- fcn_download_data(scraped_json_data = XXX, 
+                             sql_table_name = "[Supply_Analytics].[dbo].[XXX]", 
+                             csv_storage_directory = "XXX",
+                             delete_csv_logical = T) 
+
+print("ERCOT10 Complete!")
+
+
+
+
+# ----------------------------------------------------------------------------------------------------------------
+# ------------------- Pre-processing of Tables Before the Insert---------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------
+
+
+# Pre insert Processing ** Changes the formatting from two columns of date and HE, removes DST column
+print("Preprocessing Scraped Data!")
+
+if (nrow(ERCOT1) > 0 ) {
+  ERCOT1$DayHourEnding <- as.POSIXct(as.character(paste(ERCOT1$DeliveryDate,ERCOT1$HourEnding)),format = "%m/%d/%Y %H:%M:%S")
+  ERCOT1$DSTFlag <-NULL
+  ERCOT1$EntryIndex <- as.integer(ERCOT1$EntryIndex)
+  ERCOT1<-ERCOT1[,c(3:length(ERCOT1))]
+}
+
+
+if (nrow(ERCOT2) > 0 ) {
+  ERCOT2$DayHourEnding <- as.POSIXct(as.character(paste(ERCOT2$DeliveryDate,ERCOT2$HourEnding)),format = "%m/%d/%Y %H")
+  ERCOT2$DSTFlag <-NULL
+  ERCOT2<-ERCOT2[,c(3:length(ERCOT2))]
+}
+
+if (nrow(ERCOT3) > 0 ) {
+  
+  ERCOT3$DayHourEnding <- as.POSIXct(as.character(paste(ERCOT3$DELIVERY_DATE,ERCOT3$HOUR_ENDING)),format = "%m/%d/%Y %H")
+  ERCOT3$DSTFlag <-NULL
+  ERCOT3$EntryIndex <- as.integer(ERCOT3$EntryIndex)
+  ERCOT3 <-ERCOT3[,c(3:length(ERCOT3))]
+
+}
+
+if (nrow(ERCOT4) > 0 ) {
+  
+  ERCOT4$DayHourEnding <- as.POSIXct(as.character(paste(ERCOT4$DELIVERY_DATE,ERCOT4$HOUR_ENDING)),format = "%m/%d/%Y %H")
+  ERCOT4$DSTFlag <-NULL
+  ERCOT4$EntryIndex <- as.integer(ERCOT4$EntryIndex)
+  ERCOT4<-ERCOT4[,c(3:length(ERCOT4))]
+  
+}
+
+if (nrow(ERCOT5) > 0 ) {
+  
+  ERCOT5$DSTFlag <- NULL
+  
+}
+
+if (nrow(ERCOT6) > 0 ) {
+
+  ERCOT6$DayHourEnding <- as.POSIXct(as.character(paste(ERCOT6$OperatingDate,ERCOT6$HourEnding)),format = "%m/%d/%Y %H")
+  ERCOT6$DSTFlag<-NULL
+  ERCOT6<-ERCOT6[,c(3:length(ERCOT6))]
+
+}
+
+
+if (nrow(ERCOT7) > 0 ) {  
+  ERCOT7$DayHourEnding <- as.POSIXct(as.character(paste(ERCOT7$Date,ERCOT7$HourEnding)),format = "%m/%d/%Y %H")
+  ERCOT7<-ERCOT7[,c(3:length(ERCOT7))]
+
+}
+
+if (nrow(ERCOT8) > 0 ) {
+
+  ERCOT8$Available_MW_Max<-as.numeric(ERCOT8$Available_MW_Max)
+  ERCOT8$Available_MW_During_Outage<-as.numeric(ERCOT8$Available_MW_During_Outage)
+  ERCOT8$Effective_MW_Due_To_Outage<-as.numeric(ERCOT8$Effective_MW_Due_To_Outage)
+  ERCOT8$Actual_End_Date<-as.numeric(ERCOT8$Actual_End_Date)
+  ERCOT8$Actual_Outage_Start<-as.numeric(ERCOT8$Actual_Outage_Start)
+  ERCOT8$Planned_End_Date<-as.numeric(ERCOT8$Planned_End_Date)
+  ERCOT8$Actual_Outage_Start<-as.POSIXct(86400*ERCOT8$Actual_Outage_Start,origin = "1899-12-30")
+  ERCOT8$Planned_End_Date<-as.POSIXct(86400*ERCOT8$Planned_End_Date,origin = "1899-12-30")
+  ERCOT8$Actual_End_Date[ERCOT8$Actual_End_Date==0] <-NA
+  ERCOT8$Actual_End_Date<-as.POSIXct(86400*ERCOT8$Actual_End_Date,origin = "1899-12-30")
+
+}
+
+if(nrow(ERCOT9) > 0) {
+  
+  ERCOT9$SumAnc<-apply(ERCOT9[,c(10:16)],1,sum)
+  ERCOT9<-ERCOT9[ERCOT9$SumAnc != 0,]
+  ERCOT9$"Delivery Date"<-as.Date(ERCOT9$"Delivery Date",format = "%m/%d/%Y")
+  ERCOT9$"Submit Time"<-as.POSIXct(ERCOT9$"Submit Time",format = "%m/%d/%Y %H:%M:%S")
+  ERCOT9$"Update Time"<-as.POSIXct(ERCOT9$"Update Time",format = "%m/%d/%Y %H:%M:%S")
+  ERCOT9$"Hour Ending"<-as.integer(ERCOT9$"Hour Ending")/3600
+  
+} 
+
+if(nrow(ERCOT10) > 0) {
+  
+  ERCOT10$DSTFlag<-NULL
+  ERCOT10$HourEnding<-as.numeric(substr(ERCOT10$HourEnding,1,2))
+  ERCOT10$DeliveryDate<-as.character(as.Date(ERCOT10$DeliveryDate,format = "%m/%d/%Y"))
+  colnames(ERCOT10)[4]<-"Price"
+
+} 
+
+# save.image("\\\\oescca\\jec\\JustEnergy\\Houston\\Supply\\Supply\\_Load Forecasting\\Web Scrapers\\ERCOT Webscraper\\2023-04-19.Rdata")
+
+
+# ----------------------------------------------------------------------------------------------------------------
+# ------------------- Final Table Insertion ----------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------
+
+
+# ----- Test Queries: -----
+# Good
+# sqlQuery(channel, query = "Select count(*) from [Supply_Analytics].[OESCCA\\CCopeland].[XXX]")
+
+# Good
+# sqlQuery(channel, query = "Select count(*) from [Supply_Analytics].[OESCCA\\CCopeland].[XXX]")
+
+# Good
+# sqlQuery(channel, query = "Select count(*) from [Supply_Analytics].[OESCCA\\CCopeland].[XXX]")
+
+# Good
+# sqlQuery(channel, query = "Select count(*) from [Supply_Analytics].[OESCCA\\CCopeland].[XXX]")
+
+# Good 
+# sqlQuery(channel, query = "Select count(*) from [Supply_Analytics].[OESCCA\\CCopeland].[XXX]")
+
+# Good 
+# sqlQuery(channel, query = "Select count(*) from [Supply_Analytics].[OESCCA\\CCopeland].[XXX]")
+
+# Good
+# sqlQuery(channel, query = "Select count(*) from [Supply_Analytics].[OESCCA\\CCopeland].[XXX]")
+
+# Good
+# sqlQuery(channel, query = "Select count(*) from [Supply_Analytics].[OESCCA\\CCopeland].[XXX]")
+
+
+print("Inserting Data Within Tables!")
+
+if(nrow(ERCOT1) > 0) {
+  fcn_SQLInsertFast(data0 =  ERCOT1, saveTable = "[Supply_Analytics].[OESCCA\\CCopeland].[XXX]", channelInsert = channel, numParts = 500)
+}
+
+
+if(nrow(ERCOT2) > 0) {
+  fcn_SQLInsertFast(data0 =  ERCOT2, saveTable = "[Supply_Analytics].[OESCCA\\CCopeland].[XXX]", channelInsert = channel, numParts = 500)
+}
+
+
+if(nrow(ERCOT3) > 0) {
+  fcn_SQLInsertFast(data0 =  ERCOT3, saveTable = "[Supply_Analytics].[OESCCA\\CCopeland].[XXX]", channelInsert = channel, numParts = 500)
+}
+
+
+if(nrow(ERCOT4) > 0) {
+  fcn_SQLInsertFast(data0 =  ERCOT4, saveTable = "[Supply_Analytics].[OESCCA\\CCopeland].[XXX]", channelInsert = channel, numParts = 500)
+}
+
+
+if(nrow(ERCOT5) > 0) {
+  fcn_SQLInsertFast(data0 =  ERCOT5, saveTable = "[Supply_Analytics].[OESCCA\\CCopeland].[XXX]", channelInsert = channel, numParts = 500)
+}
+
+
+if(nrow(ERCOT6) > 0) {
+fcn_SQLInsertFast(data0 =  ERCOT6, saveTable = "[Supply_Analytics].[OESCCA\\CCopeland].[XXX]", channelInsert = channel, numParts = 500)
+}
+
+
+if(nrow(ERCOT7) > 0) {
+fcn_SQLInsertFast(data0 =  ERCOT7, saveTable = "[Supply_Analytics].[OESCCA\\CCopeland].[XXX]", channelInsert = channel, numParts = 500)
+}
+
+
+if(nrow(ERCOT8) > 0) {
+fcn_SQLInsertFast(data0 =  ERCOT8, saveTable = "[Supply_Analytics].[OESCCA\\CCopeland].[XXX]", channelInsert = channel, numParts = 500)
+}
+
+
+if(nrow(ERCOT9) > 0) {
+fcn_SQLInsertFast(data0 =  ERCOT9, saveTable = "[Supply_Analytics].[OESCCA\\CCopeland].[XXX]", channelInsert = channel, numParts = 500)
+}
+
+if(nrow(ERCOT10) > 0) {
+fcn_SQLInsertFast(data0 =  ERCOT10, saveTable = "[Supply_Analytics].[dbo].[XXX]", channelInsert = channel, numParts = 500)
+}
+
+#---- Other Write Method: (Uses dbi library connection)
+
+# dbWriteTable(channel,"[Supply_Analytics].[OESCCA\\CCopeland].[XXX]",ERCOT1,append=TRUE)
+# dbWriteTable(channel,"[Supply_Analytics].[OESCCA\\CCopeland].[XXX]",ERCOT2,append=TRUE)
+# dbWriteTable(channel,"[Supply_Analytics].[OESCCA\\CCopeland].[XXX]",ERCOT3,append=TRUE)
+# dbWriteTable(channel,"[Supply_Analytics].[OESCCA\\CCopeland].[XXX]",ERCOT4,append=TRUE)
+# dbWriteTable(channel,"[Supply_Analytics].[OESCCA\\CCopeland].[XXX]",ERCOT5,append=TRUE)
+# dbWriteTable(channel,"[Supply_Analytics].[OESCCA\\CCopeland].[XXX]",ERCOT6,append=TRUE)
+# dbWriteTable(channel,"[Supply_Analytics].[OESCCA\\CCopeland].[XXX]",ERCOT7,append=TRUE)
+# dbWriteTable(channel,"[Supply_Analytics].[OESCCA\\CCopeland].[XXX]",ERCOT8,append=TRUE)
+
+# ----------------------------------------------------------------------------------------------------------------
+# ------------------- Send Email --------------------------------------------------------------------------------- 
+# ----------------------------------------------------------------------------------------------------------------
+
+
+# ----- Email:  From, To, CC, , BCC, Subject 
+from= "DIST_DEMAND_FORECASTING@justenergy.com"
+to <- c("DIST_DEMAND_FORECASTING@justenergy.com", "xxx@justenergy.com" , "xxx@justenergy.com" )
+
+subject <- paste0("ERCOT Web-Scrape Successfully completed: ", Sys.time())
+
+
+# ---- General body of Email 
+
+msg <- paste0(
+  "<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0
+         Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'>
+         <html xmlns='http://www.w3.org/1999/xhtml'>
+         <head>
+            <meta http-equiv='Content-Type' content='text/html; charset=utf-8'/>
+            <meta name='viewport' content='width=device-width, initial-scale=1.0'/>
+         </head>
+         <body>
+         Hi team, <br> <br>
+         
+         The <u><b>ERCOT webscrape</b></u> has successfully completed!  <br>")
+
+
+# ---- Table Location Information:
+msg <- paste0(msg,"<br><br>
+                    <u><b> Server & Database Location Information: </b></u>
+                    <br>
+                    <ul>
+                      <li> <b>Server   =</b> DBSQL04\\SQL04  </li>
+                      <li> <b>database =</b> Supply_Analytics </li>
+                   </ul>")
+
+# ---- Updated Table Information 
+msg <- paste0(msg,"<br><br>
+                    <u><b> Updated Tables: </b></u>
+                    <br>
+                    <ol>
+              <li>[table names went here]</li>
+		          <li>[Supply_Analytics].[dbo].[DAAncillaryClears]</li>
+                    </ol>")
+
+
+
+
+# ---- Final Message box here:
+msg <- paste0(msg,"<br><br>
+                    PS: This is an automated generated email. 
+                    <br>
+                    <br>
+                    Best, <br>
+                    LoadForecasting
+                    </body>
+                    </html>")
+
+
+
+
+
+# ---- Creating the Final Email!
+msg <- mime_part(msg)
+msg[["headers"]][["Content-Type"]] <- "text/html"
+body = list(msg)
+mailControl = list(smtpServer="webmail.justenergy.com")
+
+
+
+# ---- Function that sends the Email 
+
+sendmail(from=from,
+         to=to,
+         subject=subject,
+         msg=body,
+         control=mailControl)
+
+
+
+
+# ----------------------------------------------------------------------------------------------------------------
+# ------------------- Send Email --------------------------------------------------------------------------------- 
+# ----------------------------------------------------------------------------------------------------------------
+
+
+print("Script Complete!")
+
